@@ -1,14 +1,16 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear all
 clc;
-
- load data.txt;
+addpath E:\Work\MatlabCode\image\
+ data=imread('12003.jpg');
+ if size(data,3)~=1
+    data=rgb2gray(data);
+ end
  height = size(data,1);
  width = size(data,2);
 
-
+data=double(data);
 % 几个参数
-beta = 0.005;
+beta = 0.05;
 cluster_num = 3;%将图像分为四类
 default_options = [2.0;	% exponent for the partition matrix U
 		300;	% max. number of iteration
@@ -36,14 +38,29 @@ for i=1:height
             member_sum=member_sum + membership(i,j,k);
         end        
         for p =1:cluster_num
-            membership(i,j,p)=membership(i,j,p)/member_sum;
+            membership(i,j,p)=membership(i,j,p)/(member_sum+eps);
         end
     end
 end
 
 center = zeros(cluster_num,1);
-for o = 1:iter_num %迭代次数控制
-    
+for i=1:cluster_num
+    center(i)=255*((i-1)/(cluster_num-1));
+end
+for o = 1:iter_num %迭代次数控制    
+    for h = 1:height
+        for t = 1:width
+            for k = 1:cluster_num 
+                costfunction(o) = costfunction(o) + 2 * membership(h,t,k).^m * (1 - exp( -1 * ((data(h,t) - center(k)).^2)/(beta.^2)));
+                temp =(1 - exp( -1 * ((data(h,t) - center(k)).^2)/(beta.^2))).^(-1 / (m -1));
+                top = 0;
+                for p = 1:cluster_num
+                    top = top + (1 - exp((-1 * (data(h,t) - center(p)).^2) /(beta.^2))).^(-1 / (m -1));
+                end
+                membership(h,t,k) = temp / (top+eps);
+            end
+        end
+    end  
     %计算初始中心
     
     for u = 1:cluster_num
@@ -55,24 +72,9 @@ for o = 1:iter_num %迭代次数控制
                  sum1 = sum1 + membership(h,t,u).^m  * exp((-1) * ((data(h,t) - center(u))^2) / (beta.^2));
                  end
              end
-             center(u) = sum / sum1;
+             center(u) = sum / (sum1+eps);
     end    
-               
-    for h = 1:height
-        for t = 1:width
-            for k = 1:cluster_num 
-                costfunction(o) = costfunction(o) + 2 * membership(h,t,k).^m * (1 - exp( -1 * ((data(h,t) - center(k)).^2)/(beta.^2)));
-                temp =(1 - exp( -1 * ((data(h,t) - center(k)).^2)/(beta.^2))).^(-1 / (m -1));
-                top = 0;
-                for p = 1:cluster_num
-                    top = top + (1 - exp((-1 * (data(h,t) - center(p)).^2) /(beta.^2))).^(-1 / (m -1));
-                end
-                membership(h,t,k) = temp / top;
-            end
-        end
-    end  
-        
-    if display,
+    if display
         fprintf('iter.count = %d, obj. fcn = %f\n',o, costfunction(o));
     end
     if o >1
@@ -92,12 +94,3 @@ end
 % legend('FCM1','FCM2','FCM3','location','northeast');
 % 
 % toc  
-
-plot(membership(1,:),'-ro');
-grid on
-hold on
-plot(membership(2,:),'-g*');
-plot(membership(3,:),'-b+');
-
-ylabel('Membership degrees')
-legend('FCM1','FCM2','FCM3','location','northeast');
